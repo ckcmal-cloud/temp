@@ -39,8 +39,10 @@
   </style>
 </head>
 <body>
-
-<div id="main-page">
+   <div id="loading" style="display:flex; justify-content:center; align-items:center; height:100vh; font-size:20px; color:#8e8e93;">
+  불러오는 중...
+   </div>
+<div id="main-page" style="display:none;">
   <div class="header"><span>성문 101 무한폭격</span></div>
   <div class="scroll-area">
     <div class="opt-bar">
@@ -167,8 +169,44 @@ function stopPlay(){
 }
 
 async function init(){
-  await openDB();
-  let chaps = await getData('chaps');
+  try {
+    await openDB();
+    let chaps = await getData('chaps');
+
+    if(chaps.length === 0){
+      // ── 여기는 기존 allData 객체 + for 루프 그대로 유지 ──
+      const allData = { /* 기존 데이터 그대로 */ };
+
+      for(const [day, sentences] of Object.entries(allData)){
+        const chapId = await addData('chaps', {title:day});
+        for(const s of sentences){
+          await addData('sents',{
+            chapId: chapId,
+            eng: s.eng,
+            kor: s.kor,
+            checked:false
+          });
+        }
+      }
+      chaps = await getData('chaps');
+    }
+
+    document.getElementById('chapter-list').innerHTML =
+      chaps.map(c=>`
+      <div style="background:#222;padding:20px;border-radius:15px;margin-top:10px;">
+        <div>${c.title}</div>
+        <button onclick="showDetail(${c.id},'${c.title}')">보기</button>
+      </div>
+      `).join('');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main-page').style.display = 'block';
+
+  } catch(e) {
+    document.getElementById('loading').textContent = '로딩 실패 — 새로고침 해주세요';
+    console.error(e);
+  }
+}
 
   if(chaps.length === 0){
     const allData = {
