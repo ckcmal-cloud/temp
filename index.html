@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+   <link rel="manifest" href="manifest.json">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
@@ -7,24 +8,29 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="성문101">
   <link rel="apple-touch-icon" href="https://via.placeholder.com/192/8e2de2/ffffff?text=101">
-  <link rel="manifest" href="manifest.json">
   <title>성문 101 무한 폭격기</title>
   <style>
     :root { --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom); }
     body { font-family: -apple-system, sans-serif; margin: 0; background: #000; color: #fff; height: 100vh; overflow: hidden; -webkit-user-select: none; }
+
     .header { background: rgba(20,20,20,0.9); padding: calc(15px + var(--safe-top)) 20px 15px; text-align: center; font-size: 20px; font-weight: 700; position: fixed; top: 0; left: 0; right: 0; z-index: 10; backdrop-filter: blur(10px); display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid #333; }
     .scroll-area { margin-top: 100px; height: calc(100vh - 280px); overflow-y: auto; padding: 20px; -webkit-overflow-scrolling: touch; }
+
     .btn { width: 100%; padding: 18px; border-radius: 12px; border: none; color: #fff; font-size: 17px; font-weight: 700; margin-bottom: 10px; cursor: pointer; transition: opacity 0.2s; }
     .btn:active { opacity: 0.6; }
     .btn-purple { background: linear-gradient(135deg,#8e2de2,#4a00e0); }
     .btn-green { background: #34c759; }
+
     .opt-bar { background: #1c1c1e; padding: 12px; display: flex; justify-content: space-around; font-size: 14px; border-radius: 10px; margin-bottom: 15px; }
     .chap-item { background: #1c1c1e; padding: 18px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 0.5px solid #333; }
+
     .sentence { background: #1c1c1e; padding: 18px; margin-bottom: 12px; border-radius: 12px; display: flex; gap: 12px; align-items: flex-start; transition: 0.3s; border: 2px solid transparent; }
     .highlight { background: #2c2c2e !important; border-color: #ff9500 !important; transform: scale(1.02); box-shadow: 0 5px 15px rgba(255,149,0,0.2); }
+
     .eng { font-size: 18px; font-weight: 600; line-height: 1.4; color: #fff; pointer-events: none; }
     .kor { font-size: 14px; color: #8e8e93; margin-top: 6px; pointer-events: none; }
     input[type="checkbox"] { width: 24px; height: 24px; accent-color: #ff9500; flex-shrink: 0; cursor: pointer; }
+
     .controls { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15,15,15,0.98); padding: 15px 20px calc(15px + var(--safe-bottom)); border-top: 0.5px solid #333; z-index: 20; }
     .stop-btn { width: 100%; padding: 14px; background: #ff3b30; color: #fff; border: none; border-radius: 10px; font-size: 18px; font-weight: 700; margin-bottom: 12px; }
     .settings { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; }
@@ -33,162 +39,62 @@
   </style>
 </head>
 <body>
-  <div id="loading" style="display:flex; justify-content:center; align-items:center; height:100vh; font-size:20px; color:#8e8e93;">
-    불러오는 중...
-  </div>
-  <div id="main-page" style="display:none;">
-    <div class="header"><span>성문 101 무한폭격</span></div>
-    <div class="scroll-area">
-      <div class="opt-bar">
-        <label style="cursor:pointer;"><input type="checkbox" id="global-shuffle"> 🔀 섞기</label>
-        <label style="cursor:pointer;"><input type="checkbox" id="only-checked"> ✅ 선택만</label>
-      </div>
-      <button class="btn btn-purple" onclick="startPlay('all')">전체 무한 루프 시작</button>
-      <div id="chapter-list"></div>
-    </div>
-  </div>
-  <div id="detail-page" style="display:none;">
-    <div class="header">
-      <button onclick="goBack()" style="background:none; border:none; color:#ff9500; font-size:17px; font-weight:600;">← 뒤로</button>
-      <span id="detail-title"></span>
-      <div style="width:50px;"></div>
-    </div>
-    <div class="scroll-area" id="detail-scroll">
-      <button class="btn btn-green" onclick="startPlay('chapter')">이 구간 재생 시작</button>
-      <div id="sentence-list"></div>
-    </div>
-  </div>
-  <div class="controls">
-    <button class="stop-btn" onclick="stopPlay()">정지 (STOP)</button>
-    <div class="settings">
-      <div><small>속도</small><select id="speed"><option value="0.7">0.7x</option><option value="0.9">0.9x</option><option value="1.0" selected>1.0x</option><option value="1.2">1.2x</option></select></div>
-      <div><small>반복</small><select id="repeatN"><option>1</option><option selected>3</option><option>5</option></select></div>
-      <div><small>간격</small><select id="gap"><option value="0.5">0.5s</option><option value="1" selected>1s</option><option value="2">2s</option></select></div>
-    </div>
-  </div>
 
-<script>
-let db, playing = false, wakeLock = null;
-let currentChapterId = null;
-const synth = window.speechSynthesis;
-
-// index.html의 스크립트 부분을 아래처럼 수정하세요.
-
-let bgAudioCtx; // bgSource는 제거
-
-function keepAudioAlive() {
-  try {
-    // 소리를 직접 루프 재생(start)하지 않고, 컨텍스트만 '활성화' 상태로 유지
-    if (!bgAudioCtx) {
-      bgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (bgAudioCtx.state === 'suspended') {
-      bgAudioCtx.resume();
-    }
-  } catch(e) {
-    console.error("Audio Context Resume Failed", e);
-  }
-}
-
-// startPlay 함수는 이렇게 유지
-async function startPlay(mode) {
-  if(playing) stopPlay();
-  
-  // 1. 시스템 오디오 채널 깨우기
-  unlockAudio(); 
-  // 2. 오디오 컨텍스트만 활성화 (루프 재생 제외)
-  keepAudioAlive(); 
-  
-  playing = true;
-  // ... 나머지 로직 (list 가져오기 등)
-
-const openDB = () => new Promise((res, rej) => {
-  const req = indexedDB.open('InfiniteEnglishDB', 1);
-  req.onupgradeneeded = e => {
-    const d = e.target.result;
-    if (!d.objectStoreNames.contains('chaps')) d.createObjectStore('chaps', {keyPath:'id', autoIncrement:true});
-    if (!d.objectStoreNames.contains('sents')) {
-      const s = d.createObjectStore('sents', {keyPath:'id', autoIncrement:true});
-      s.createIndex('chapId', 'chapId');
-    }
-  };
-  req.onsuccess = () => { db = req.result; res(); };
-  req.onerror = () => rej(req.error);
-});
-
-const getData = store => new Promise((res, rej) => {
-  const tx = db.transaction(store, 'readonly');
-  const r = tx.objectStore(store).getAll();
-  r.onsuccess = () => res(r.result);
-  r.onerror = () => rej(r.error);
-});
-
-const addData = (store, obj) => new Promise((res, rej) => {
-  const tx = db.transaction(store, 'readwrite');
-  const r = tx.objectStore(store).add(obj);
-  r.onsuccess = () => res(r.result);
-  r.onerror = () => rej(r.error);
-});
-
-const putData = (store, obj) => new Promise(res => {
-  const tx = db.transaction(store, 'readwrite');
-  tx.objectStore(store).put(obj).onsuccess = () => res();
-});
-
-async function startPlay(mode) {
-  if(playing) stopPlay();
-  unlockAudio();
-  playing = true;
-  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
-  
-  while(playing) {
-    let list = await getData('sents');
-    if(mode === 'chapter' && currentChapterId) list = list.filter(s => s.chapId === currentChapterId);
-    if(document.getElementById('only-checked').checked) list = list.filter(s => s.checked);
-    if(document.getElementById('global-shuffle').checked) list.sort(() => Math.random() - 0.5);
-    
-    if(list.length === 0) { alert("문장이 없습니다."); stopPlay(); break; }
-    
-    for(const s of list) {
-      if(!playing) break;
-      const el = document.getElementById('s' + s.id);
-      document.querySelectorAll('.sentence').forEach(i => i.classList.remove('highlight'));
-      if(el) {
-        el.classList.add('highlight');
-        el.scrollIntoView({behavior:'smooth', block:'center'});
-      }
-      
-      const n = +document.getElementById('repeatN').value;
-      for(let i=0; i<n; i++) {
-        if(!playing) break;
-        await new Promise(res => {
-          const u = new SpeechSynthesisUtterance(s.eng);
-          u.lang = 'en-US';
-          u.rate = +document.getElementById('speed').value;
-          u.onend = res;
-          u.onerror = res;
-          synth.speak(u);
-        });
-        await new Promise(r => setTimeout(r, +document.getElementById('gap').value * 1000));
-      }
-    }
-  }
-}
-
-function stopPlay(){
-  playing = false;
-  synth.cancel();
-  if(wakeLock) { wakeLock.release().then(() => wakeLock = null); }
-  document.querySelectorAll('.highlight').forEach(i => i.classList.remove('highlight'));
+<div id="main-page">
+   <div id="loading" style="display:flex; justify-content:center; align-items:center; height:100vh; font-size:20px; color:#8e8e93;">
+  불러오는 중...
+   </div>
+<div id="main-page" style="display:none;">
+  <div class="header"><span>성문 101 무한폭격</span></div>
+  <div class="scroll-area">
+    <div class="opt-bar">
+@@ -167,445 +169,481 @@
 }
 
 async function init(){
+  await openDB();
+  let chaps = await getData('chaps');
   try {
     await openDB();
     let chaps = await getData('chaps');
-    
+
     if(chaps.length === 0){
-      const allData = {
+      // ── 여기는 기존 allData 객체 + for 루프 그대로 유지 ──
+      const allData = { /* 기존 데이터 그대로 */ };
+
+      for(const [day, sentences] of Object.entries(allData)){
+        const chapId = await addData('chaps', {title:day});
+        for(const s of sentences){
+          await addData('sents',{
+            chapId: chapId,
+            eng: s.eng,
+            kor: s.kor,
+            checked:false
+          });
+        }
+      }
+      chaps = await getData('chaps');
+    }
+
+    document.getElementById('chapter-list').innerHTML =
+      chaps.map(c=>`
+      <div style="background:#222;padding:20px;border-radius:15px;margin-top:10px;">
+        <div>${c.title}</div>
+        <button onclick="showDetail(${c.id},'${c.title}')">보기</button>
+      </div>
+      `).join('');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main-page').style.display = 'block';
+
+  } catch(e) {
+    document.getElementById('loading').textContent = '로딩 실패 — 새로고침 해주세요';
+    console.error(e);
+  }
+}
+
+  if(chaps.length === 0){
+    const allData = {
         "Day1": [
             { eng: `I want to make the future better than the past. I don't want it contaminated by the mistakes and errors with which history is filled. We should all be concerned about the future because that is where we will spend the remainder of our lives.`, kor: `나는 미래를 과거보다 더 낫게 만들고 싶다. 나는 미래가 역사를 채우고 있는 실수와 오류들로 오염되는 것을 원치 않는다. 우리 모두는 미래에 관심을 가져야 한다. 왜냐하면 그곳은 우리가 남은 생을 보낼 곳이기 때문이다.` },
             { eng: `A young man wrote to me the other day lamenting his ignorance and requesting me to tell him what books to read and what to do in order to become learned and wise. I sent him a civil answer and the advice that occurred to me.`, kor: `요전날 한 젊은이가 자신의 무지함을 한탄하며, 학식 있고 지혜로워지기 위해 어떤 책을 읽어야 하고 무엇을 해야 할지 알려달라는 편지를 보내왔다. 나는 그에게 정중한 답변과 내게 떠오른 조언을 보내주었다.` },
@@ -551,75 +457,77 @@ async function init(){
             { eng: `Art is always as much concerned with the way people feel about things as it is with the way things really are. Usually, both knowing and feeling go to make up a picture, and so paintings are different from one another, depending on whether the artist was more interested in what he saw or knew, or in what he felt; also on how much he saw, and knew, and felt.`, kor: `예술은 사물의 실제 모습만큼이나 사물에 대해 사람들이 느끼는 방식에 항상 관심을 가진다. 대개 앎과 느낌이 합쳐져 그림을 이루며, 따라서 그림들은 예술가가 보고 아는 것에 더 관심이 있었는지 혹은 느끼는 것에 더 관심이 있었는지에 따라, 또한 얼마나 많이 보고 알고 느꼈는지에 따라 서로 달라진다.` },
             { eng: `My mother married my father largely, it seems, to help him out with his five motherless children. Having any child herself was a secondary consideration. Yet first she had a girl, then she had another girl, and it was very nice, of course, to have them, but slightly disappointing, because she belonged to the generation and tradition that made a son the really important event; then I came, a fine healthy child.`, kor: `어머니는 주로 아버지가 혼자 키우던 다섯 아이를 돕기 위해 아버지와 결혼하신 것처럼 보인다. 직접 아이를 갖는 것은 부차적인 문제였다. 그런데 어머니는 먼저 딸을 낳으셨고, 뒤이어 또 딸을 낳으셨다. 물론 아이들을 얻은 것은 좋은 일이었지만, 아들을 낳는 것을 정말 중요한 사건으로 여기던 세대와 전통 속에서 사셨기에 약간은 실망스러우셨을 것이다. 그러다 건강하고 예쁜 아이인 내가 태어났다.` },
             { eng: `There is this difference between man and the lower animals, that what man does he has to learn how to do, while animals are able to do the most that they accomplish by what we call instinct; that is, without having to learn how.`, kor: `인간과 하등 동물 사이에는 이런 차이가 있다. 인간은 자신이 하는 일을 하는 법을 배워야 하는 반면, 동물들은 그들이 해내는 대부분의 일을 소위 '본능'에 의해, 즉 배우지 않고도 할 수 있다는 점이다.` }
-            ]
-};
-      
-      for(const [day, sentences] of Object.entries(allData)){
-        const chapId = await addData('chaps', {title:day});
-        for(const s of sentences){
-          await addData('sents',{ chapId, eng: s.eng, kor: s.kor, checked:false });
+            ]};
+
+        for(const [day, sentences] of Object.entries(allData)){
+            const chapId = await addData('chaps', {title:day});
+
+            for(const s of sentences){
+                await addData('sents',{
+                    chapId: chapId,
+                    eng: s.eng,
+                    kor: s.kor,
+                    checked:false
+                });
+            }
         }
-      }
-      chaps = await getData('chaps');
+
+        location.reload();
+        return;
     }
-    
-    document.getElementById('chapter-list').innerHTML = chaps.map(c=> `
-      <div class="chap-item">
-        <span>${c.title}</span>
-        <button class="btn-green" style="width:80px; padding:10px; border-radius:8px;" onclick="showDetail(${c.id},'${c.title}')">보기</button>
-      </div>
-    `).join('');
-    
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('main-page').style.display = 'block';
-  } catch(e) {
-    document.getElementById('loading').textContent = '로딩 실패 — 다시 시도해주세요';
-    console.error(e);
-  }
+
+    chaps = await getData('chaps');
+
+    document.getElementById('chapter-list').innerHTML =
+        chaps.map(c=>`
+        <div style="background:#222;padding:20px;border-radius:15px;margin-top:10px;">
+            <div>${c.title}</div>
+            <button onclick="showDetail(${c.id},'${c.title}')">보기</button>
+        </div>
+        `).join('');
 }
 
-async function showDetail(id, title){
-  currentChapterId = id;
-  document.getElementById('main-page').style.display='none';
-  document.getElementById('detail-page').style.display='block';
-  document.getElementById('detail-title').textContent = title;
-  
-  let sents = await getData('sents');
-  sents = sents.filter(s => s.chapId === id);
-  
-  document.getElementById('sentence-list').innerHTML = sents.map(s => `
-    <div class="sentence" id="s${s.id}">
-      <input type="checkbox" ${s.checked ? 'checked' : ''} onchange="toggleCheck(${s.id}, this.checked)">
-      <div>
-        <div class="eng">${s.eng}</div>
-        <div class="kor">${s.kor}</div>
-      </div>
-    </div>
-  `).join('');
+// ▶️ 상세
+async function showDetail(id,title){
+    currentChapterId = id;
+
+    document.getElementById('main-page').style.display='none';
+    document.getElementById('detail-page').style.display='block';
+    document.getElementById('detail-title').textContent = title;
+
+    let sents = await getData('sents');
+    sents = sents.filter(s=>s.chapId===id);
+
+    document.getElementById('sentence-list').innerHTML =
+        sents.map(s=>`
+        <div class="sentence" id="s${s.id}">
+            <input type="checkbox" ${s.checked?'checked':''}
+            onchange="toggleCheck(${s.id}, this.checked)">
+            <div>${s.eng}<div>${s.kor}</div></div>
+        </div>
+        `).join('');
 }
 
-async function toggleCheck(id, val){
-  const tx = db.transaction('sents', 'readwrite');
-  const store = tx.objectStore('sents');
-  const s = await new Promise(res => {
-    store.get(id).onsuccess = e => res(e.target.result);
-  });
-  if(s){
-    s.checked = val;
-    store.put(s);
-  }
+// ▶️ 체크
+async function toggleCheck(id,val){
+    const sents = await getData('sents');
+    const s = sents.find(i=>i.id===id);
+    if(s){
+        s.checked = val;
+        await putData('sents', s);
+    }
 }
 
 function goBack(){
-  stopPlay();
-  document.getElementById('detail-page').style.display='none';
-  document.getElementById('main-page').style.display='block';
+    stopPlay();
+    document.getElementById('detail-page').style.display='none';
+    document.getElementById('main-page').style.display='block';
 }
 
+// ── Service Worker 등록 (오프라인 지원) ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
-
 init();
 </script>
 </body>
