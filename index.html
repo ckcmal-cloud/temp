@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+   <link rel="manifest" href="manifest.json">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
@@ -600,7 +601,10 @@ function goBack(){
     document.getElementById('main-page').style.display='block';
 }
 
-
+// ── Service Worker 등록 (오프라인 지원) ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 init();
 </script>
 </body>
