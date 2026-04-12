@@ -87,25 +87,34 @@ function unlockAudio() {
   synth.speak(silent);
 }
 
-const openDB = () => new Promise(res => {
+const openDB = () => new Promise((res, rej) => {
   const req = indexedDB.open('InfiniteEnglishDB', 1);
   req.onupgradeneeded = e => {
     const d = e.target.result;
-    d.createObjectStore('chaps', {keyPath:'id', autoIncrement:true});
-    const s = d.createObjectStore('sents', {keyPath:'id', autoIncrement:true});
-    s.createIndex('chapId', 'chapId');
+    if (!d.objectStoreNames.contains('chaps'))
+      d.createObjectStore('chaps', {keyPath:'id', autoIncrement:true});
+    if (!d.objectStoreNames.contains('sents')) {
+      const s = d.createObjectStore('sents', {keyPath:'id', autoIncrement:true});
+      s.createIndex('chapId', 'chapId');
+    }
   };
   req.onsuccess = () => { db = req.result; res(); };
+  req.onerror = () => rej(req.error);
+  req.onblocked = () => rej(new Error('DB blocked'));
 });
 
-const getData = store => new Promise(res => {
+const getData = store => new Promise((res, rej) => {
   const tx = db.transaction(store, 'readonly');
-  tx.objectStore(store).getAll().onsuccess = e => res(e.target.result);
+  const r = tx.objectStore(store).getAll();
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
 });
-
-const addData = (store, obj) => new Promise(res => {
+   
+const addData = (store, obj) => new Promise((res, rej) => {
   const tx = db.transaction(store, 'readwrite');
-  tx.objectStore(store).add(obj).onsuccess = e => res(e.target.result);
+  const r = tx.objectStore(store).add(obj);
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
 });
 
 const putData = (store, obj) => new Promise(res => {
