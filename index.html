@@ -76,30 +76,51 @@ let bgAudioCtx, bgSource;
 
 function keepAudioAlive() {
   try {
-    // 1. 이미 재생 중이면 중복 생성 방지
     if (bgAudioCtx && bgAudioCtx.state === 'running') return;
 
+    // iOS 호환성을 위한 컨텍스트 생성
     bgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
-    // 2. iOS는 컨텍스트 생성 후 'suspended' 상태일 때가 많으므로 강제 재개
-    if (bgAudioCtx.state === 'suspended') {
-      bgAudioCtx.resume();
-    }
-
-    const buf = bgAudioCtx.createBuffer(1, bgAudioCtx.sampleRate * 2, bgAudioCtx.sampleRate);
+    // 1. 아주 짧은 무음 버퍼 생성 (노이즈 값 제거)
+    const buf = bgAudioCtx.createBuffer(1, 1, bgAudioCtx.sampleRate);
     const ch = buf.getChannelData(0);
-    // 무음에 가깝지만 '신호'는 있는 상태로 설정
-    for (let i = 0; i < ch.length; i++) ch[i] = 0.00001; 
+    ch[0] = 0; // 완전 무음
 
     bgSource = bgAudioCtx.createBufferSource();
     bgSource.buffer = buf;
-    bgSource.loop = true;
-    bgSource.connect(bgAudioCtx.destination);
+    bgSource.loop = true; // 무한 반복으로 세션 유지
+
+    // 2. GainNode를 추가하여 볼륨을 0으로 명시적 설정 (TTS 방해 금지)
+    const gainNode = bgAudioCtx.createGain();
+    gainNode.gain.value = 0; 
+
+    bgSource.connect(gainNode);
+    gainNode.connect(bgAudioCtx.destination);
+
     bgSource.start();
-    console.log("Audio Keep-Alive Started");
+    
+    if (bgAudioCtx.state === 'suspended') {
+      bgAudioCtx.resume();
+    }
+    console.log("Silent Background Audio Initialized");
   } catch(e) {
     console.error("Audio Keep-Alive Failed", e);
   }
+}
+
+// 중지 함수도 명확하게 수정
+function stopAudioAlive() {
+  try {
+    if(bgSource) {
+      bgSource.stop();
+      bgSource.disconnect();
+    }
+    if(bgAudioCtx) {
+      bgAudioCtx.close();
+    }
+    bgSource = null;
+    bgAudioCtx = null;
+  } catch(e) {}
 }
 
 const openDB = () => new Promise((res, rej) => {
