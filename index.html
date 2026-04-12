@@ -72,56 +72,35 @@ let db, playing = false, wakeLock = null;
 let currentChapterId = null;
 const synth = window.speechSynthesis;
 
-let bgAudioCtx, bgSource;
+// index.html의 스크립트 부분을 아래처럼 수정하세요.
+
+let bgAudioCtx; // bgSource는 제거
 
 function keepAudioAlive() {
   try {
-    if (bgAudioCtx && bgAudioCtx.state === 'running') return;
-
-    // iOS 호환성을 위한 컨텍스트 생성
-    bgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // 1. 아주 짧은 무음 버퍼 생성 (노이즈 값 제거)
-    const buf = bgAudioCtx.createBuffer(1, 1, bgAudioCtx.sampleRate);
-    const ch = buf.getChannelData(0);
-    ch[0] = 0; // 완전 무음
-
-    bgSource = bgAudioCtx.createBufferSource();
-    bgSource.buffer = buf;
-    bgSource.loop = true; // 무한 반복으로 세션 유지
-
-    // 2. GainNode를 추가하여 볼륨을 0으로 명시적 설정 (TTS 방해 금지)
-    const gainNode = bgAudioCtx.createGain();
-    gainNode.gain.value = 0; 
-
-    bgSource.connect(gainNode);
-    gainNode.connect(bgAudioCtx.destination);
-
-    bgSource.start();
-    
+    // 소리를 직접 루프 재생(start)하지 않고, 컨텍스트만 '활성화' 상태로 유지
+    if (!bgAudioCtx) {
+      bgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
     if (bgAudioCtx.state === 'suspended') {
       bgAudioCtx.resume();
     }
-    console.log("Silent Background Audio Initialized");
   } catch(e) {
-    console.error("Audio Keep-Alive Failed", e);
+    console.error("Audio Context Resume Failed", e);
   }
 }
 
-// 중지 함수도 명확하게 수정
-function stopAudioAlive() {
-  try {
-    if(bgSource) {
-      bgSource.stop();
-      bgSource.disconnect();
-    }
-    if(bgAudioCtx) {
-      bgAudioCtx.close();
-    }
-    bgSource = null;
-    bgAudioCtx = null;
-  } catch(e) {}
-}
+// startPlay 함수는 이렇게 유지
+async function startPlay(mode) {
+  if(playing) stopPlay();
+  
+  // 1. 시스템 오디오 채널 깨우기
+  unlockAudio(); 
+  // 2. 오디오 컨텍스트만 활성화 (루프 재생 제외)
+  keepAudioAlive(); 
+  
+  playing = true;
+  // ... 나머지 로직 (list 가져오기 등)
 
 const openDB = () => new Promise((res, rej) => {
   const req = indexedDB.open('InfiniteEnglishDB', 1);
