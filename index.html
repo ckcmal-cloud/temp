@@ -72,10 +72,34 @@ let db, playing = false, wakeLock = null;
 let currentChapterId = null;
 const synth = window.speechSynthesis;
 
-function unlockAudio() {
-  const silent = new SpeechSynthesisUtterance('');
-  silent.volume = 0;
-  synth.speak(silent);
+let bgAudioCtx, bgSource;
+
+function keepAudioAlive() {
+  try {
+    // 1. 이미 재생 중이면 중복 생성 방지
+    if (bgAudioCtx && bgAudioCtx.state === 'running') return;
+
+    bgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // 2. iOS는 컨텍스트 생성 후 'suspended' 상태일 때가 많으므로 강제 재개
+    if (bgAudioCtx.state === 'suspended') {
+      bgAudioCtx.resume();
+    }
+
+    const buf = bgAudioCtx.createBuffer(1, bgAudioCtx.sampleRate * 2, bgAudioCtx.sampleRate);
+    const ch = buf.getChannelData(0);
+    // 무음에 가깝지만 '신호'는 있는 상태로 설정
+    for (let i = 0; i < ch.length; i++) ch[i] = 0.00001; 
+
+    bgSource = bgAudioCtx.createBufferSource();
+    bgSource.buffer = buf;
+    bgSource.loop = true;
+    bgSource.connect(bgAudioCtx.destination);
+    bgSource.start();
+    console.log("Audio Keep-Alive Started");
+  } catch(e) {
+    console.error("Audio Keep-Alive Failed", e);
+  }
 }
 
 const openDB = () => new Promise((res, rej) => {
