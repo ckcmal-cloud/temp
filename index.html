@@ -101,7 +101,24 @@ function keepAudioAlive() {
     console.error("Audio Keep-Alive Failed", e);
   }
 }
+function unlockAudio() {
+  // iOS speechSynthesis 상태 강제 리셋
+  synth.cancel();
+  synth.resume();
+  // 무음 발화로 오디오 엔진 깨우기
+  const silent = new SpeechSynthesisUtterance(' ');
+  silent.volume = 0;
+  silent.rate = 1;
+  synth.speak(silent);
+}
 
+function stopAudioAlive() {
+  try {
+    if(bgSource) { bgSource.stop(); bgSource = null; }
+    if(bgAudioCtx) { bgAudioCtx.close(); bgAudioCtx = null; }
+  } catch(e) {}
+}
+  
 const openDB = () => new Promise((res, rej) => {
   const req = indexedDB.open('InfiniteEnglishDB', 1);
   req.onupgradeneeded = e => {
@@ -139,6 +156,8 @@ async function startPlay(mode) {
   if(playing) stopPlay();
   unlockAudio();
   playing = true;
+  keepAudioAlive();  
+  
   try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
   
   while(playing) {
@@ -178,9 +197,24 @@ async function startPlay(mode) {
 function stopPlay(){
   playing = false;
   synth.cancel();
+  stopAudioAlive();
   if(wakeLock) { wakeLock.release().then(() => wakeLock = null); }
   document.querySelectorAll('.highlight').forEach(i => i.classList.remove('highlight'));
-}
+}                        // ← stopPlay 함수 여기서 끝
+
+// ← visibilitychange는 이 아래, 함수 바깥에 위치
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    synth.cancel();
+    synth.resume();
+  }
+});
+
+// 페이지 로드 즉시 한 번 리셋
+window.addEventListener('pageshow', () => {
+  synth.cancel();
+  synth.resume();
+});
 
 async function init(){
   try {
