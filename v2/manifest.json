@@ -1,11 +1,16 @@
 {
-  "name": "성문 종합영어 문장 반복기",
-  "short_name": "성문101",
+  "name": "성문 101 무한 폭격기", 
+  "short_name": "성문101 v2",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "icons": [
-    { "src": "https://via.placeholder.com/192/8e2de2/ffffff?text=101", "sizes": "192x192", "type": "image/png" }
+    { 
+      "src": "https://via.placeholder.com/192/8e2de2/ffffff?text=v2", 
+      "sizes": "192x192", 
+      "type": "image/png" 
+    }
   ]
 }
