@@ -1,5 +1,7 @@
-const CACHE = 'sm101-v1';
-// './'를 추가해야 메인 주소 접속 시 index.html을 찾을 수 있습니다.
+// 1. 캐시 이름을 v2로 변경하여 v1과 충돌을 방지합니다.
+const CACHE = 'sm101-v2'; 
+
+// './'는 v2 폴더 자체를, './index.html'은 v2/index.html을 의미하게 됩니다.
 const URLS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -10,16 +12,15 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
+      // 여기서도 'sm101-v2'가 아닌 다른 캐시들(v1 포함)을 정리하도록 동작합니다.
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
-// 핵심: 캐시를 먼저 확인하는 전략으로 변경
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // HTML은 항상 최신, 나머지는 캐시 우선
   if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
     e.respondWith(
       fetch(e.request).then(res => {
