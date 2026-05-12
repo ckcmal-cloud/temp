@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="성문101">
   <link rel="apple-touch-icon" href="https://via.placeholder.com/192/8e2de2/ffffff?text=101">
-  <link rel="manifest" href="../manifest.json">
+  <link rel="manifest" href="manifest.json">
   <title>성문 종합영어 문장 반복기</title>
   <style>
     :root { --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom); }
@@ -938,7 +938,7 @@ function goBack(){
 }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('../sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js');
 }
 
 init();
